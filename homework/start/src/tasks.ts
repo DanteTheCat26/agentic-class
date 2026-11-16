@@ -16,37 +16,42 @@ export const seedTasks: Task[] = [
     { id: 3, title: "   ", done: false },
 ]
 
+/** Убирает пробельные символы (включая таб, NBSP, zero-width space) с краёв. */
+function trimBlank(title: string): string {
+    return title.replace(/^[\s\u200B]+|[\s\u200B]+$/gu, "")
+}
+
 /** Доска считает название без непробельных символов отсутствующим названием. */
 export function isBlankTitle(title: string): boolean {
-    return title.trim().length === 0
+    return trimBlank(title).length === 0
 }
 
 /**
- * Создание задачи. Форма создания проверяла название всегда — проблема в пути
- * переименования ниже: старая форма сохраняла название без проверки.
+ * Создание задачи. Название обрезается по краям; пустое отклоняется.
  */
 export function createTask(id: number, title: string): Task | undefined {
-    const trimmed = title.trim()
+    const trimmed = trimBlank(title)
     if (trimmed.length === 0) return undefined
     return { id, title: trimmed, done: false }
 }
 
-/** Переименование существующей задачи. Проверки здесь нет — issue #7. */
+/** Переименование существующей задачи. Пустое название отклоняется, остаётся прежнее. */
 export function renameTask(tasks: Task[], id: number, title: string): Task[] {
-    return tasks.map((task) => (task.id === id ? { ...task, title } : task))
+    const trimmed = trimBlank(title)
+    if (trimmed.length === 0) return tasks
+    return tasks.map((task) => (task.id === id ? { ...task, title: trimmed } : task))
 }
 
 export function visibleTasks(tasks: Task[], filter: Filter): Task[] {
-    if (filter === "open") return tasks.filter((task) => !task.done)
-    if (filter === "done") return tasks.filter((task) => task.done)
-    return tasks
+    const nonBlank = tasks.filter((task) => !isBlankTitle(task.title))
+    if (filter === "open") return nonBlank.filter((task) => !task.done)
+    if (filter === "done") return nonBlank.filter((task) => task.done)
+    return nonBlank
 }
 
 /**
- * Счётчик в шапке. Он считает все открытые строки — включая унаследованную
- * пустую, поэтому показывает 2, хотя на доске одна настоящая открытая задача
- * и одна пустая строка.
+ * Счётчик в шапке. Пустые строки не считаются открытыми задачами.
  */
 export function openCount(tasks: Task[]): number {
-    return tasks.filter((task) => !task.done).length
+    return tasks.filter((task) => !task.done && !isBlankTitle(task.title)).length
 }
